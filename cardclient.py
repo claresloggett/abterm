@@ -8,6 +8,8 @@ from azure.devops.v7_0.work_item_tracking.models import Wiql, WorkItemBatchGetRe
 
 # TODO add dataframe versions
 
+# TODO implement cache; any call should go through it if already populated. Needs either a refresh function or a refresh option on each call, which empties the cache first
+
 BASE_URL = "https://dev.azure.com/"
 
 class CardClient:
@@ -50,3 +52,57 @@ class CardClient:
         action = JsonPatchOperation(op='Replace', path='/fields/System.State', value=new_state)
         result = self.client.update_work_item([action], card_id)
         return result.as_dict()
+    
+    def get_sprint_cards(self, sprint_id, sprint_client):
+        cardrefs = sprint_client.get_sprint_cardrefs(sprint_id)
+        card_ids = [cardref.target.id for cardref in cardrefs.work_item_relations]
+        cards = []
+        while len(card_ids) > 0:
+            # Get a batch of cards, up to 200 at a time (API limit)
+            batch_ids = card_ids[:200]
+            card_ids = card_ids[200:]
+            batch = self.client.get_work_items_batch(WorkItemBatchGetRequest(ids=batch_ids, expand='relations'))
+            cards += batch
+        return cards
+
+    # TODO just use field System.Parent, and check it's there without expand
+    def get_card_parents(self, card):
+        """
+        Get all parents of the given card and add them as fields (Parent Feature, Parent Epic, Parent User Story).
+        Also add the first parent as a top-level field 'Parent'.
+        """
+        def _get_parent_relation(workitem):
+            parent_ids = [item['url'].split('/')[-1] for item in workitem.as_dict()['relations'] if item['attributes']['name']=='Parent']
+            if len(parent_ids)==0:
+                return None
+            if len(parent_ids)>1:
+                raise ValueError(f"Card {workitem.id} has multiple parents: {parent_ids}")
+            return parent_ids[0]
+        
+        # In case we need to get it again for the relations
+        card = self.client.get_work_item(card.id, expand='relations')
+        print("Getting parents for card:", card.id, card.fields['System.Title'])
+        current_parent = card
+        direct_parent = True
+        while (parent_id :=  _get_parent_relation(current_parent)):
+            print("Found parent ID:", parent_id)
+            # Get the parent card
+            current_parent = self.client.get_work_item(parent_id, expand='relations')
+            # Get the workitem type and title of the parent
+            parent_type = current_parent.fields['System.WorkItemType']
+            parent_title = current_parent.fields['System.Title']
+            print("Parent type:", parent_type, "Title:", parent_title)
+            # Add the parent as a field
+            card.fields[f'Parent {parent_type}'] = {
+                'Id': parent_id,
+                'Title': parent_title
+            }
+            if direct_parent:
+                # If this is the first parent, add it as a direct parent
+                card.fields['Parent'] = {
+                    'Id': parent_id,
+                    'Title': parent_title
+                }
+                direct_parent = False
+        return card
+        

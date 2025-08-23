@@ -20,6 +20,6 @@ class SprintClient:
     def get_sprints(self):
         return self.client.get_team_iterations(self.team_context)
     
-    def get_sprint_cards(self, sprint_id):
+    def get_sprint_cardrefs(self, sprint_id):
         return self.client.get_iteration_work_items(self.team_context, sprint_id)
     

@@ -1,7 +1,7 @@
 
 from textual.app import App, ComposeResult
 from textual.widget import Widget
-from textual.widgets import Static, ListView, ListItem
+from textual.widgets import Static, ListView, ListItem, DataTable
 from textual.containers import Grid, Horizontal, Vertical
 
 from cardclient import CardClient
@@ -33,12 +33,14 @@ class ABTerm(App):
         self.sprint_client = SprintClient(org, project, team, token)
         self.card_client = CardClient(org, project, token)
         self.sprints_panel = SprintsPanel(self.sprint_client)
-        self.cards_panel = CardsPanel()
+        self.cards_panel = CardsPanel(self.sprint_client, self.card_client)
+        self.card_detail_panel = CardDetailPanel()
     
     def compose(self) -> ComposeResult:
         yield Horizontal(
             self.sprints_panel,
             self.cards_panel,
+            #self.card_detail_panel
         )
         
 
@@ -60,24 +62,80 @@ class SprintsPanel(Widget):
 
     def get_sprints(self):
         """Fetch sprints from Azure DevOps and update the list view."""
-        sprints = self.client.get_sprints()
-        self.sprints = [sprint.name for sprint in sprints][::-1]
+        self.sprints = self.client.get_sprints()[::-1]
+        print(self.sprints)
         self.update_list_view()
 
     def update_list_view(self):
         self.list_view.clear()
         for sprint in self.sprints:
-            item = ListItem(Static(sprint), id=sprint.replace(" ", "_"))
+            item = ListItem(Static(sprint.name), id='ID'+sprint.id)
             self.list_view.append(item)
+
+    def on_list_view_highlighted(self, event):
+        """Handle selection of a sprint from the list."""
+        self.app.cards_panel.get_cards(event.item.id[2:])
+
 
 class CardsPanel(Widget):
     """A panel to display cards as a selectable list."""
+
+    def __init__(self, sprint_client, card_client, **kwargs):
+        super().__init__(**kwargs)
+        self.table = DataTable()
+        self.sprint_client = sprint_client
+        self.card_client = card_client
+        self.cards = []
+
+    def on_mount(self):
+        self.table.add_column("ID", width=5)
+        self.table.add_column("Title", width=60)
+        self.table.add_column("State", width=15)
+        self.table.add_column("Feature", width=35)
+        self.table.add_column("Epic", width=35)
+
+    def compose(self) -> ComposeResult:
+        yield self.table
+
+    def get_cards(self, sprint_id):
+        """Fetch cards for the given sprint ID."""
+        print(f"Fetching cards for sprint ID: {sprint_id}")
+        cards = self.card_client.get_sprint_cards(sprint_id, self.sprint_client)
+        self.cards = [self.card_client.get_card_parents(card) for card in cards]
+        print("Have now updated first three cards with parents")
+        print("First card:")
+        print(self.cards[0].fields)
+        self.update_table()
+
+    def update_table(self):
+        """Update the table with the fetched cards."""
+        self.table.clear()
+        for card in self.cards:
+            # Add a row for each card
+            self.table.add_row(
+                str(card.id),
+                card.fields['System.Title'],
+                card.fields['System.State'],
+                card.fields.get('Parent Feature', {}).get('Title', "unknown"),
+                card.fields.get('Parent Epic', {}).get('Title', "unknown"))
+            
+    
+# May not keep this; for now for exploring data
+class CardDetailPanel(Widget):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.card = None
+
+    def set_card(self, card):
+        #self.app.card_client.get_card_parents(card)
+        self.card = card
     
     def render(self):
-        return("This is the cards panel")
+        if not self.card:
+            return "No card selected"
+        return "\n".join([f"{k}: {v}" for k,v in self.card.fields.items()])
+
 
 
 if __name__ == "__main__":
