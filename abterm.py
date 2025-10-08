@@ -107,9 +107,14 @@ class CardsPanel(Widget):
         self.table.clear()
         for card in self.cards:
             # Add a row for each card
+            # Checking type is Task works for us, but the more generic solution would be 
+            # to check if the parent is in the sprint
+            prefix = ""
+            if card.fields['System.WorkItemType'] == "Task":
+                prefix = "  "
             self.table.add_row(
                 str(card.id),
-                card.fields['System.Title'],
+                prefix + card.fields['System.Title'],
                 card.fields['System.State'],
                 card.fields.get('Parent Feature', {}).get('Title', "unknown"),
                 card.fields.get('Parent Epic', {}).get('Title', "unknown"))
