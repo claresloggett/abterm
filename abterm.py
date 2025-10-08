@@ -63,7 +63,6 @@ class SprintsPanel(Widget):
     def get_sprints(self):
         """Fetch sprints from Azure DevOps and update the list view."""
         self.sprints = self.client.get_sprints()[::-1]
-        print(self.sprints)
         self.update_list_view()
 
     def update_list_view(self):
@@ -99,12 +98,8 @@ class CardsPanel(Widget):
 
     def get_cards(self, sprint_id):
         """Fetch cards for the given sprint ID."""
-        print(f"Fetching cards for sprint ID: {sprint_id}")
         cards = self.card_client.get_sprint_cards(sprint_id, self.sprint_client)
         self.cards = [self.card_client.get_card_parents(card) for card in cards]
-        print("Have now updated first three cards with parents")
-        print("First card:")
-        print(self.cards[0].fields)
         self.update_table()
 
     def update_table(self):
@@ -135,7 +130,6 @@ class CardDetailPanel(Widget):
         if not self.card:
             return "No card selected"
         return "\n".join([f"{k}: {v}" for k,v in self.card.fields.items()])
-
 
 
 if __name__ == "__main__":
