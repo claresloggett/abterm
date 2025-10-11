@@ -35,13 +35,27 @@ class ABTerm(App):
         self.sprints_panel = SprintsPanel(self.sprint_client)
         self.cards_panel = CardsPanel(self.sprint_client, self.card_client)
         self.card_detail_panel = CardDetailPanel()
-    
+        self.current_sprint_id = None
+
     def compose(self) -> ComposeResult:
         yield Horizontal(
             self.sprints_panel,
             self.cards_panel,
             #self.card_detail_panel
         )
+
+    def refresh_cache(self):
+        """
+        Reset caches, and re-get current sprint cards.
+        """
+        self.sprint_client.cache.reset()
+        self.card_client.cache.reset()
+        if self.current_sprint_id is not None:
+            self.app.cards_panel.get_cards(self.current_sprint_id)
+
+    def on_key(self, event):
+        if event.key == "r":
+            self.refresh_cache()
         
 
 class SprintsPanel(Widget):
@@ -73,7 +87,9 @@ class SprintsPanel(Widget):
 
     def on_list_view_highlighted(self, event):
         """Handle selection of a sprint from the list."""
-        self.app.cards_panel.get_cards(event.item.id[2:])
+        sprint_id = event.item.id[2:]
+        self.app.current_sprint_id = sprint_id
+        self.app.cards_panel.get_cards(sprint_id)
 
 
 class CardsPanel(Widget):
