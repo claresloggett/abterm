@@ -8,9 +8,31 @@ from azure.devops.v7_0.work_item_tracking.models import Wiql, WorkItemBatchGetRe
 
 # TODO add dataframe versions
 
-# TODO implement cache; any call should go through it if already populated. Needs either a refresh function or a refresh option on each call, which empties the cache first
-
 BASE_URL = "https://dev.azure.com/"
+
+class WorkItemCache:
+    def __init__(self, client):
+        self.client = client
+        self.cache = {}
+    
+    def reset(self):
+        self.cache = {}
+    
+    def get_work_item(self, card_id, expand=None):
+        key = (card_id, expand)
+        if key not in self.cache:
+            self.cache[key] = self.client.get_work_item(card_id, expand=expand)
+        return self.cache[key]
+
+    # Does not exactly match the API as doesn't require a WorkItemBatchGetRequest
+    def get_work_items_batch(self, project, ids, fields=None, expand=None):
+        unknown_ids = [id for id in ids if (id, fields, expand) not in self.cache]
+        if len(unknown_ids)>0:
+            request = WorkItemBatchGetRequest(ids=unknown_ids, fields=fields, expand=expand)
+            cards = self.client.get_work_items_batch(request, project=project)
+            for card in cards:
+                self.cache[(card.id, fields, expand)] = card
+        return [self.cache[(id, fields, expand)] for id in ids]
 
 class CardClient:
     def __init__(self, org, project, token):
@@ -18,6 +40,7 @@ class CardClient:
         credentials = BasicAuthentication('', token)
         connection = Connection(base_url=BASE_URL+org, creds=credentials)
         self.client = connection.clients.get_work_item_tracking_client()
+        self.cache = WorkItemCache(self.client)
 
     def add_state_to_card(self, card):
         """Add state as a top-level entry on the dict"""
@@ -34,17 +57,17 @@ class CardClient:
         ids = [item.id for item in listing.work_items]
         if len(ids)==0:
             return []
-        epics = self.client.get_work_items_batch(WorkItemBatchGetRequest(ids=ids, fields=fields), project=self.project)
+        epics = self.cache.get_work_items_batch(self.project, ids, fields=fields)
         return [self.add_state_to_card(epic.as_dict()) for epic in epics]
 
     def get_children(self, card_id, fields=None):
         """Get all children of the given card"""
-        workitem = self.client.get_work_item(card_id, expand='relations')
+        workitem = self.cache.get_work_item(card_id, expand='relations')
         child_ids = [item['url'].split('/')[-1] for item in workitem.as_dict()['relations'] if item['attributes']['name']=='Child']
         if len(child_ids)==0:
             return []
         # TODO should check listing is not over 200 items, and batch
-        cards = self.client.get_work_items_batch(WorkItemBatchGetRequest(ids=child_ids, fields=fields), project=self.project)
+        cards = self.cache.get_work_items_batch(self.project, child_ids, fields=fields)
         return [self.add_state_to_card(card.as_dict()) for card in cards]
 
     def update_card_state(self, card_id, new_state):
@@ -61,7 +84,7 @@ class CardClient:
             # Get a batch of cards, up to 200 at a time (API limit)
             batch_ids = card_ids[:200]
             card_ids = card_ids[200:]
-            batch = self.client.get_work_items_batch(WorkItemBatchGetRequest(ids=batch_ids, expand='relations'))
+            batch = self.cache.get_work_items_batch(self.project, batch_ids, expand='relations')
             cards += batch
         return cards
 
@@ -71,12 +94,12 @@ class CardClient:
         Also add the first parent as a top-level field 'Parent'.
         """
         # In case we need to get it again for the relations
-        card = self.client.get_work_item(card.id, expand='relations')
+        card = self.cache.get_work_item(card.id, expand='relations')
         current_parent = card
         direct_parent = True
         while (parent_id :=  current_parent.fields.get('System.Parent')):
             # Get the parent card
-            current_parent = self.client.get_work_item(parent_id, expand='relations')
+            current_parent = self.cache.get_work_item(parent_id, expand='relations')
             # Get the workitem type and title of the parent
             parent_type = current_parent.fields['System.WorkItemType']
             parent_title = current_parent.fields['System.Title']
