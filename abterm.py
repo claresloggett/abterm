@@ -3,6 +3,7 @@ from textual.app import App, ComposeResult
 from textual.widget import Widget
 from textual.widgets import Static, ListView, ListItem, DataTable
 from textual.containers import Grid, Horizontal, Vertical
+from rich.text import Text
 
 from cardclient import CardClient
 from sprintclient import SprintClient
@@ -10,6 +11,14 @@ from sprintclient import SprintClient
 # the config file is currently Python-like; could technically import it instead
 # TODO: should put it into user's home dir; this is reliant on relative path
 CONFIG_FILE = "config.txt"
+
+CARD_TYPE_COLOURS = {
+    "User Story": "#2a7fff",
+    "Task": "#803300",
+    "Bug": "#b82727",
+    "Feature": "#7137c8",
+    "Epic": "#e69138",
+}
 
 def read_config():
     expected_keys = ['ORGANISATION', 'PROJECT', 'TEAM', 'TOKEN']
@@ -98,6 +107,7 @@ class CardsPanel(Widget):
     def __init__(self, sprint_client, card_client, **kwargs):
         super().__init__(**kwargs)
         self.table = DataTable()
+        self.table.cursor_type = "row"
         self.sprint_client = sprint_client
         self.card_client = card_client
         self.cards = []
@@ -128,8 +138,13 @@ class CardsPanel(Widget):
             prefix = ""
             if card.fields['System.WorkItemType'] == "Task":
                 prefix = "  "
+            card_type_colour = CARD_TYPE_COLOURS.get(
+                card.fields["System.WorkItemType"], "black"
+            )
+            print(f"on {card_type_colour}")
+            card_id = Text(str(card.id), style=f"on {card_type_colour}")
             self.table.add_row(
-                str(card.id),
+                card_id,
                 prefix + card.fields['System.Title'],
                 card.fields['System.State'],
                 card.fields.get('Parent Feature', {}).get('Title', "unknown"),
