@@ -6,11 +6,7 @@ from azure.devops.connection import Connection
 from msrest.authentication import BasicAuthentication
 from azure.devops.v7_0.work_item_tracking.models import Wiql, WorkItemBatchGetRequest, JsonPatchOperation
 
-# TODO add dataframe versions
-
 BASE_URL = "https://dev.azure.com/"
-
-
 
 class CardClient:
     def __init__(self, org, project, token):
@@ -35,7 +31,7 @@ class CardClient:
         ids = [item.id for item in listing.work_items]
         if len(ids)==0:
             return []
-        epics = self.cache.get_work_items_batch(self.project, ids, fields=fields)
+        epics = self.cache.get_work_items_batch(self.project, ids)
         return [self.add_state_to_card(epic.as_dict()) for epic in epics]
 
     def get_children(self, card_id, fields=None):
