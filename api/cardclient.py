@@ -10,29 +10,7 @@ from azure.devops.v7_0.work_item_tracking.models import Wiql, WorkItemBatchGetRe
 
 BASE_URL = "https://dev.azure.com/"
 
-class WorkItemCache:
-    def __init__(self, client):
-        self.client = client
-        self.cache = {}
-    
-    def reset(self):
-        self.cache = {}
-    
-    def get_work_item(self, card_id, expand=None):
-        key = (card_id, expand)
-        if key not in self.cache:
-            self.cache[key] = self.client.get_work_item(card_id, expand=expand)
-        return self.cache[key]
 
-    # Does not exactly match the API as doesn't require a WorkItemBatchGetRequest
-    def get_work_items_batch(self, project, ids, fields=None, expand=None):
-        unknown_ids = [id for id in ids if (id, fields, expand) not in self.cache]
-        if len(unknown_ids)>0:
-            request = WorkItemBatchGetRequest(ids=unknown_ids, fields=fields, expand=expand)
-            cards = self.client.get_work_items_batch(request, project=project)
-            for card in cards:
-                self.cache[(card.id, fields, expand)] = card
-        return [self.cache[(id, fields, expand)] for id in ids]
 
 class CardClient:
     def __init__(self, org, project, token):
@@ -116,4 +94,28 @@ class CardClient:
                 }
                 direct_parent = False
         return card
-        
+
+
+class WorkItemCache:
+    def __init__(self, client):
+        self.client = client
+        self.cache = {}
+
+    def reset(self):
+        self.cache = {}
+
+    def get_work_item(self, card_id, expand=None):
+        key = (card_id, expand)
+        if key not in self.cache:
+            self.cache[key] = self.client.get_work_item(card_id, expand=expand)
+        return self.cache[key]
+
+    # Does not exactly match the API as doesn't require a WorkItemBatchGetRequest
+    def get_work_items_batch(self, project, ids, fields=None, expand=None):
+        unknown_ids = [id for id in ids if (id, fields, expand) not in self.cache]
+        if len(unknown_ids)>0:
+            request = WorkItemBatchGetRequest(ids=unknown_ids, fields=fields, expand=expand)
+            cards = self.client.get_work_items_batch(request, project=project)
+            for card in cards:
+                self.cache[(card.id, fields, expand)] = card
+        return [self.cache[(id, fields, expand)] for id in ids]

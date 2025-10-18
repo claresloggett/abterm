@@ -9,20 +9,6 @@ from azure.devops.v7_0.work_item_tracking.models import TeamContext
 
 BASE_URL = "https://dev.azure.com/"
 
-class WorkClientCache:
-    def __init__(self, client):
-        self.client = client
-        self.cache = {}
-    
-    def reset(self):
-        self.cache = {}
-    
-    def get_iteration_work_items(self, team_context, sprint_id):
-        key = (team_context.project, team_context.team, sprint_id)
-        if key not in self.cache:
-            self.cache[key] = self.client.get_iteration_work_items(team_context, sprint_id)
-        return self.cache[key]
-
 class SprintClient:
     def __init__(self, org, project, team, token):
         credentials = BasicAuthentication('', token)
@@ -38,4 +24,18 @@ class SprintClient:
     
     def get_sprint_cardrefs(self, sprint_id):
         return self.cache.get_iteration_work_items(self.team_context, sprint_id)
-    
+
+
+class WorkClientCache:
+    def __init__(self, client):
+        self.client = client
+        self.cache = {}
+
+    def reset(self):
+        self.cache = {}
+
+    def get_iteration_work_items(self, team_context, sprint_id):
+        key = (team_context.project, team_context.team, sprint_id)
+        if key not in self.cache:
+            self.cache[key] = self.client.get_iteration_work_items(team_context, sprint_id)
+        return self.cache[key]
