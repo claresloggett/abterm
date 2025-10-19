@@ -14,18 +14,22 @@ class CommandState(Enum):
 
 class ABTerm(App):
     
+    # These may contain duplicate hotkeys so long as the ACTION_LISTS do not overlap
     BINDINGS = [
         Binding("r", "refresh_cache", "Refresh Cache", show=True),
         Binding("q", "quit", "Quit", show=True),
-        Binding("key_esc", "action_cancel", "Cancel", show=False),
-        Binding("t", "change_cardstate", "Change Card State", show=True),
-        Binding("c", "action_close_card", "Close card", show=True),
+        Binding("escape", "cancel", "Cancel", show=False),
+        Binding("s", "change_cardstate", "Change Card State", show=True),
+        Binding("n", "card_set_state('New')", "New", show=True),
+        Binding("a", "card_set_state('Active')", "Active", show=True),
+        Binding("d", "card_set_state('Development Completed')", "DevCompleted", show=True),
+        Binding("c", "card_set_state('Closed')", "Close", show=True),
     ]
     
     # These actions are available in each command state
     ACTION_LISTS = {
-        CommandState.NORMAL: ["refresh_cache", "change_cardstate", "quit"],
-        CommandState.CHANGE_CARDSTATE: ["action_close_card", "action_cancel", "quit"],
+        CommandState.NORMAL: ["refresh_cache", "change_cardstate", "dummy_close", "quit"],
+        CommandState.CHANGE_CARDSTATE: ["card_set_state", "cancel", "quit"],
     }
     
     def __init__(self, org, project, team, token, **kwargs):
@@ -39,6 +43,7 @@ class ABTerm(App):
         self.sprints_panel = SprintsPanel(self.sprint_client)
         self.cards_panel = CardsPanel(self.sprint_client, self.card_client)
         self.current_sprint_id = None
+        self.current_card_id = None
         self.command_state = CommandState.NORMAL
 
     def compose(self) -> ComposeResult:
@@ -56,8 +61,6 @@ class ABTerm(App):
     ) -> bool | None:
         """
         Check if the requested action is valid in the current command state.
-        If so, return True. If not, return False.
-        If the action is not recognized, return None.
         """
         if action in self.ACTION_LISTS[self.command_state]:
             return True
@@ -76,15 +79,25 @@ class ABTerm(App):
         """
         Change the state of the selected card.
         """
-        self.command_state = CommandState.CHANGE_CARDSTATE
-    
-    def action_close_card(self):
-        pass
+        if self.current_card_id is not None:
+            self.command_state = CommandState.CHANGE_CARDSTATE
+        self.refresh_bindings()
+
+    def action_card_set_state(self, new_state: str):
+        if self.current_card_id is not None:
+            self.card_client.update_card_state(self.current_card_id, new_state)
+            # Refresh the cards panel
+            if self.current_sprint_id is not None:
+                self.app.cards_panel.get_cards(self.current_sprint_id)
+        self.command_state = CommandState.NORMAL
+        self.refresh_bindings()
     
     def action_cancel(self):
         """
         Cancel the current action, returning to normal mode.
         """
         self.command_state = CommandState.NORMAL
+        self.refresh_bindings()
+    
 
         

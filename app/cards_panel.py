@@ -35,7 +35,7 @@ class CardsPanel(Widget):
     def get_cards(self, sprint_id):
         """Fetch cards for the given sprint ID."""
         cards = self.card_client.get_sprint_cards(sprint_id, self.sprint_client)
-        self.cards = [self.card_client.get_card_parents(card) for card in cards]
+        self.cards = [self.card_client.get_card_and_parents(card) for card in cards]
         self.update_table()
 
     def update_table(self):
@@ -57,6 +57,12 @@ class CardsPanel(Widget):
                 prefix + card.fields['System.Title'],
                 card.fields['System.State'],
                 card.fields.get('Parent Feature', {}).get('Title', "unknown"),
-                card.fields.get('Parent Epic', {}).get('Title', "unknown"))
+                card.fields.get('Parent Epic', {}).get('Title', "unknown"),
+                key=str(card.id)
+            )
+    
+    def on_data_table_row_highlighted(self, event):
+        """Handle selection of a card from the table."""
+        self.app.current_card_id = event.row_key.value
             
  

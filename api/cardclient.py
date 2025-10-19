@@ -44,11 +44,20 @@ class CardClient:
         cards = self.cache.get_work_items_batch(self.project, child_ids, fields=fields)
         return [self.add_state_to_card(card.as_dict()) for card in cards]
 
+    def get_card(self, card_id):
+        """Get a single card by ID"""
+        card = self.cache.get_work_item(card_id, expand='relations')
+        return card.as_dict()
+
     def update_card_state(self, card_id, new_state):
         """Set card state to requested state"""
         action = JsonPatchOperation(op='Replace', path='/fields/System.State', value=new_state)
-        result = self.client.update_work_item([action], card_id)
-        return result.as_dict()
+        result = self.client.update_work_item([action], card_id).as_dict()
+        if not result['fields']['System.State'] == new_state:
+            raise Exception(f"Failed to update card {card_id} to state {new_state}")
+        # Drop any versions of this card from the cache
+        self.cache.reset_card(card_id)
+        return result
     
     def get_sprint_cards(self, sprint_id, sprint_client):
         cardrefs = sprint_client.get_sprint_cardrefs(sprint_id)
@@ -62,8 +71,9 @@ class CardClient:
             cards += batch
         return cards
 
-    def get_card_parents(self, card):
+    def get_card_and_parents(self, card):
         """
+        Re-get the card.
         Get all parents of the given card and add them as fields (Parent Feature, Parent Epic, Parent User Story).
         Also add the first parent as a top-level field 'Parent'.
         """
@@ -100,11 +110,20 @@ class WorkItemCache:
     def reset(self):
         self.cache = {}
 
+    def reset_card(self, card_id):
+        card_id = str(card_id)
+        if card_id in self.cache:
+            del self.cache[card_id]
+
     def get_work_item(self, card_id, expand=None):
-        key = (card_id, expand)
-        if key not in self.cache:
-            self.cache[key] = self.client.get_work_item(card_id, expand=expand)
-        return self.cache[key]
+        card_id = str(card_id)
+        # The cache is nested and indexed by just card_id, so we can invalidate all versions of a card when needed
+        if card_id not in self.cache:
+            self.cache[card_id] = {}
+            self.cache[card_id][expand] = self.client.get_work_item(card_id, expand=expand)
+        if expand not in self.cache[card_id]:
+            self.cache[card_id][expand] = self.client.get_work_item(card_id, expand=expand)
+        return self.cache[card_id][expand]
 
     # Does not exactly match the API as doesn't require a WorkItemBatchGetRequest
     def get_work_items_batch(self, project, ids, fields=None, expand=None):
