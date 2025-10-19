@@ -11,6 +11,8 @@ CARD_TYPE_COLOURS = {
     "Epic": "#e69138",
 }
 
+DONE_STATES = ['Development Completed', 'Ready for UAT', 'Closed', 'Removed']
+
 class CardsPanel(Widget):
     """A panel to display cards as a selectable list."""
 
@@ -50,21 +52,30 @@ class CardsPanel(Widget):
         self.table.clear()
         for card in self.cards:
             # Add a row for each card
-            # Checking type is Task works for us, but the more generic solution would be 
-            # to check if the parent is in the sprint
+            # Checking type is Task works for us for indenting, 
+            # but the more generic solution would be to check if the parent is in the sprint
             prefix = ""
             if card.fields['System.WorkItemType'] == "Task":
                 prefix = "  "
             card_type_colour = CARD_TYPE_COLOURS.get(
                 card.fields["System.WorkItemType"], "black"
             )
+            text_style = ""
+            if card.fields['System.State'] in DONE_STATES:
+                text_style = "dim "
             card_id = Text(str(card.id), style=f"on {card_type_colour}")
+            card_title = Text(prefix + card.fields['System.Title'], style=text_style)
+            card_state = Text(card.fields['System.State'], style=text_style)
+            card_feature = Text(card.fields.get('Parent Feature', {}).get('Title', "unknown"),
+                                style=text_style)
+            card_epic = Text(card.fields.get('Parent Epic', {}).get('Title', "unknown"),
+                             style=text_style)
             self.table.add_row(
                 card_id,
-                prefix + card.fields['System.Title'],
-                card.fields['System.State'],
-                card.fields.get('Parent Feature', {}).get('Title', "unknown"),
-                card.fields.get('Parent Epic', {}).get('Title', "unknown"),
+                card_title,
+                card_state,
+                card_feature,
+                card_epic,
                 key=str(card.id)
             )
     
