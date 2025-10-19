@@ -37,7 +37,7 @@ class ABTerm(App):
     # These actions are available in each command state
     ACTION_LISTS = {
         CommandState.NORMAL: ["refresh_cache", "cmds_cardstate",  "cmds_move_card", 
-                              "open_card_url", "dummy_close", "quit"],
+                              "open_card_url", "quit"],
         CommandState.CHANGE_CARDSTATE: ["card_set_state", "cancel", "quit"],
         CommandState.MOVE_CARD: ["move_card", "move_card_to_backlog", "cancel", "quit"],
     }
@@ -90,9 +90,8 @@ class ABTerm(App):
         """
         Open the selected card in the web browser.
         """
-        print("enter pressed")
         if self.current_card_id is not None:
-            url = f"{self.base_url}{self.organisation}/{self.project}/_workitems/edit/{self.current_card_id}/"
+            url = f"{self.base_url}/{self.organisation}/{self.project}/_workitems/edit/{self.current_card_id}/"
             self.open_url(url)
     
     def action_cmds_cardstate(self):

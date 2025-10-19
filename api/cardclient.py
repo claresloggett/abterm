@@ -10,7 +10,7 @@ class CardClient:
     def __init__(self, base_url, org, project, token):
         self.project = project
         credentials = BasicAuthentication('', token)
-        connection = Connection(base_url=base_url+org, creds=credentials)
+        connection = Connection(base_url=f"{base_url}/{org}", creds=credentials)
         self.client = connection.clients.get_work_item_tracking_client()
         self.cache = WorkItemCache(self.client)
 

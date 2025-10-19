@@ -10,7 +10,7 @@ from azure.devops.v7_0.work_item_tracking.models import TeamContext
 class SprintClient:
     def __init__(self, base_url, org, project, team, token):
         credentials = BasicAuthentication('', token)
-        connection = Connection(base_url=base_url+org, creds=credentials)
+        connection = Connection(base_url=f"{base_url}/{org}", creds=credentials)
         self.client = connection.clients.get_work_client()
         self.cache = WorkClientCache(self.client)
         self.team_context = TeamContext(project=project, team=team)
