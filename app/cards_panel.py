@@ -51,7 +51,6 @@ class CardsPanel(Widget):
             card_type_colour = CARD_TYPE_COLOURS.get(
                 card.fields["System.WorkItemType"], "black"
             )
-            print(f"on {card_type_colour}")
             card_id = Text(str(card.id), style=f"on {card_type_colour}")
             self.table.add_row(
                 card_id,
