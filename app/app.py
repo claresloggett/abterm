@@ -11,6 +11,7 @@ from api import CardClient, SprintClient
 class CommandState(Enum):
     NORMAL = 1
     CHANGE_CARDSTATE = 2
+    MOVE_CARD = 3
 
 class ABTerm(App):
     
@@ -19,17 +20,23 @@ class ABTerm(App):
         Binding("r", "refresh_cache", "Refresh Cache", show=True),
         Binding("q", "quit", "Quit", show=True),
         Binding("escape", "cancel", "Cancel", show=False),
-        Binding("s", "change_cardstate", "Change Card State", show=True),
+        
+        Binding("s", "cmds_cardstate", "Change Card State", show=True),
         Binding("n", "card_set_state('New')", "New", show=True),
         Binding("a", "card_set_state('Active')", "Active", show=True),
         Binding("d", "card_set_state('Development Completed')", "DevCompleted", show=True),
         Binding("c", "card_set_state('Closed')", "Close", show=True),
+        
+        Binding("m", "cmds_move_card", "Move Card", show=True),
+        Binding("f", "move_card(1)", "Forward", show=True),
+        Binding("b", "move_card(-1)", "Backward", show=True),
     ]
     
     # These actions are available in each command state
     ACTION_LISTS = {
-        CommandState.NORMAL: ["refresh_cache", "change_cardstate", "dummy_close", "quit"],
+        CommandState.NORMAL: ["refresh_cache", "cmds_cardstate",  "cmds_move_card", "dummy_close", "quit"],
         CommandState.CHANGE_CARDSTATE: ["card_set_state", "cancel", "quit"],
+        CommandState.MOVE_CARD: ["move_card", "cancel", "quit"],
     }
     
     def __init__(self, org, project, team, token, **kwargs):
@@ -75,7 +82,7 @@ class ABTerm(App):
         if self.current_sprint_id is not None:
             self.app.cards_panel.get_cards(self.current_sprint_id)
     
-    def action_change_cardstate(self):
+    def action_cmds_cardstate(self):
         """
         Change the state of the selected card.
         """
@@ -89,6 +96,35 @@ class ABTerm(App):
             # Refresh the cards panel
             if self.current_sprint_id is not None:
                 self.app.cards_panel.get_cards(self.current_sprint_id)
+        self.command_state = CommandState.NORMAL
+        self.refresh_bindings()
+    
+    def action_cmds_move_card(self):
+        """
+        Move the selected card to another sprint.
+        """
+        if self.current_card_id is not None:
+            self.command_state = CommandState.MOVE_CARD
+        self.refresh_bindings()
+    
+    def action_move_card(self, offset: int):
+        """
+        Move the selected card to another sprint.
+        """
+        if self.current_card_id is None:
+            return
+        # Get the current sprint of the card
+        card = self.card_client.get_card(self.current_card_id)
+        current_sprint_path = card['fields'].get('System.IterationPath', None)
+        if current_sprint_path is None:
+            return
+        new_sprint = self.sprints_panel.get_sprint_by_offset(current_sprint_path, offset)
+        if new_sprint is None:
+            return
+        self.card_client.update_card_sprint(self.current_card_id, new_sprint.path, self.sprint_client)
+        # Refresh the cards panel
+        if self.current_sprint_id is not None:
+            self.app.cards_panel.get_cards(self.current_sprint_id)
         self.command_state = CommandState.NORMAL
         self.refresh_bindings()
     

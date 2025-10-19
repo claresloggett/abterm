@@ -59,6 +59,18 @@ class CardClient:
         self.cache.reset_card(card_id)
         return result
     
+    def update_card_sprint(self, card_id, sprint_path, sprint_client):
+        """Set card iteration path to requested sprint path"""
+        action = JsonPatchOperation(op='Replace', path='/fields/System.IterationPath', value=sprint_path)
+        result = self.client.update_work_item([action], card_id).as_dict()
+        if not result['fields']['System.IterationPath'] == sprint_path:
+            raise Exception(f"Failed to update card {card_id} to sprint {sprint_path}")
+        # Drop any versions of this card from the cache
+        self.cache.reset_card(card_id)
+        # For now drop the whole iterations cache whenever we move a card - this doesn't drop card details
+        sprint_client.cache.reset()
+        return result
+    
     def get_sprint_cards(self, sprint_id, sprint_client):
         cardrefs = sprint_client.get_sprint_cardrefs(sprint_id)
         card_ids = [cardref.target.id for cardref in cardrefs.work_item_relations]

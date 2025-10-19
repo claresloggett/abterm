@@ -37,6 +37,13 @@ class CardsPanel(Widget):
         cards = self.card_client.get_sprint_cards(sprint_id, self.sprint_client)
         self.cards = [self.card_client.get_card_and_parents(card) for card in cards]
         self.update_table()
+    
+    def card(self, card_id):
+        """Get a card by its ID from the current list."""
+        for card in self.cards:
+            if str(card.id) == str(card_id):
+                return card
+        return None
 
     def update_table(self):
         """Update the table with the fetched cards."""

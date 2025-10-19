@@ -23,6 +23,17 @@ class SprintsPanel(Widget):
         """Fetch sprints from Azure DevOps and update the list view."""
         self.sprints = self.client.get_sprints()[::-1]
         self.update_list_view()
+    
+    def get_sprint_by_offset(self, sprint_path, offset=1):
+        """Get the sprint N after/before the given sprint ID."""
+        for index, sprint in enumerate(self.sprints):
+            if sprint.path == sprint_path:
+                # minus, because sprints are in reverse chronological order
+                # positive offset means move to later sprint
+                new_index = index - offset
+                if 0 <= new_index < len(self.sprints):
+                    return self.sprints[new_index]
+        return None
 
     def update_list_view(self):
         self.list_view.clear()
