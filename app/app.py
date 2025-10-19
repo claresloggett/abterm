@@ -29,8 +29,9 @@ class ABTerm(App):
         Binding("d", "card_set_state('Development Completed')", "DevCompleted", show=True),
         Binding("c", "card_set_state('Closed')", "Close", show=True),
         
-        Binding("f", "move_card(1)", "Forward", show=True),
-        Binding("b", "move_card(-1)", "Backward", show=True),
+        Binding("n", "move_card(1)", "Next", show=True),
+        Binding("p", "move_card(-1)", "Previous", show=True),
+        Binding("b", "move_card_to_backlog()", "Backlog", show=True),
     ]
     
     # These actions are available in each command state
@@ -38,7 +39,7 @@ class ABTerm(App):
         CommandState.NORMAL: ["refresh_cache", "cmds_cardstate",  "cmds_move_card", 
                               "open_card_url", "dummy_close", "quit"],
         CommandState.CHANGE_CARDSTATE: ["card_set_state", "cancel", "quit"],
-        CommandState.MOVE_CARD: ["move_card", "cancel", "quit"],
+        CommandState.MOVE_CARD: ["move_card", "move_card_to_backlog", "cancel", "quit"],
     }
     
     def __init__(self, base_url, org, project, team, token, **kwargs):
@@ -134,6 +135,20 @@ class ABTerm(App):
         if new_sprint is None:
             return
         self.card_client.update_card_sprint(self.current_card_id, new_sprint.path, self.sprint_client)
+        # Refresh the cards panel
+        if self.current_sprint_id is not None:
+            self.cards_panel.get_cards(self.current_sprint_id)
+        self.command_state = CommandState.NORMAL
+        self.refresh_bindings()
+    
+    def action_move_card_to_backlog(self):
+        """
+        Move the selected card to the backlog.
+        """
+        if self.current_card_id is None:
+            return
+        backlog = self.project
+        self.card_client.update_card_sprint(self.current_card_id, f"{backlog}", self.sprint_client)
         # Refresh the cards panel
         if self.current_sprint_id is not None:
             self.cards_panel.get_cards(self.current_sprint_id)
