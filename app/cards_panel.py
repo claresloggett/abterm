@@ -71,5 +71,5 @@ class CardsPanel(Widget):
     def on_data_table_row_highlighted(self, event):
         """Handle selection of a card from the table."""
         self.app.current_card_id = event.row_key.value
-            
+    
  

@@ -4,6 +4,8 @@ from app import ABTerm
 # TODO: should put it into user's home dir; this is reliant on relative path
 CONFIG_FILE = "config.txt"
 
+BASE_URL = "https://dev.azure.com/"
+
 def read_config():
     expected_keys = ['ORGANISATION', 'PROJECT', 'TEAM', 'TOKEN']
     with open(CONFIG_FILE, "r") as f:
@@ -18,5 +20,5 @@ def read_config():
 
 if __name__ == "__main__":
     config = read_config()
-    app = ABTerm(config['ORGANISATION'], config['PROJECT'], config['TEAM'], config['TOKEN'])
+    app = ABTerm(BASE_URL, config['ORGANISATION'], config['PROJECT'], config['TEAM'], config['TOKEN'])
     app.run()

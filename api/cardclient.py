@@ -6,13 +6,11 @@ from azure.devops.connection import Connection
 from msrest.authentication import BasicAuthentication
 from azure.devops.v7_0.work_item_tracking.models import Wiql, WorkItemBatchGetRequest, JsonPatchOperation
 
-BASE_URL = "https://dev.azure.com/"
-
 class CardClient:
-    def __init__(self, org, project, token):
+    def __init__(self, base_url, org, project, token):
         self.project = project
         credentials = BasicAuthentication('', token)
-        connection = Connection(base_url=BASE_URL+org, creds=credentials)
+        connection = Connection(base_url=base_url+org, creds=credentials)
         self.client = connection.clients.get_work_item_tracking_client()
         self.cache = WorkItemCache(self.client)
 

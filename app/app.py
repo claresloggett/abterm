@@ -18,35 +18,38 @@ class ABTerm(App):
     # These may contain duplicate hotkeys so long as the ACTION_LISTS do not overlap
     BINDINGS = [
         Binding("r", "refresh_cache", "Refresh Cache", show=True),
+        Binding("s", "cmds_cardstate", "Change Card State", show=True),
+        Binding("m", "cmds_move_card", "Move Card", show=True),
+        Binding("o", "open_card_url", "Open Card URL", show=True),
         Binding("q", "quit", "Quit", show=True),
         Binding("escape", "cancel", "Cancel", show=False),
         
-        Binding("s", "cmds_cardstate", "Change Card State", show=True),
         Binding("n", "card_set_state('New')", "New", show=True),
         Binding("a", "card_set_state('Active')", "Active", show=True),
         Binding("d", "card_set_state('Development Completed')", "DevCompleted", show=True),
         Binding("c", "card_set_state('Closed')", "Close", show=True),
         
-        Binding("m", "cmds_move_card", "Move Card", show=True),
         Binding("f", "move_card(1)", "Forward", show=True),
         Binding("b", "move_card(-1)", "Backward", show=True),
     ]
     
     # These actions are available in each command state
     ACTION_LISTS = {
-        CommandState.NORMAL: ["refresh_cache", "cmds_cardstate",  "cmds_move_card", "dummy_close", "quit"],
+        CommandState.NORMAL: ["refresh_cache", "cmds_cardstate",  "cmds_move_card", 
+                              "open_card_url", "dummy_close", "quit"],
         CommandState.CHANGE_CARDSTATE: ["card_set_state", "cancel", "quit"],
         CommandState.MOVE_CARD: ["move_card", "cancel", "quit"],
     }
     
-    def __init__(self, org, project, team, token, **kwargs):
+    def __init__(self, base_url, org, project, team, token, **kwargs):
         super().__init__(**kwargs)
         self.title = "Azure Boards Terminal"
+        self.base_url = base_url
         self.organisation = org
         self.project = project
         self.team = team
-        self.sprint_client = SprintClient(org, project, team, token)
-        self.card_client = CardClient(org, project, token)
+        self.sprint_client = SprintClient(base_url, org, project, team, token)
+        self.card_client = CardClient(base_url, org, project, token)
         self.sprints_panel = SprintsPanel(self.sprint_client)
         self.cards_panel = CardsPanel(self.sprint_client, self.card_client)
         self.current_sprint_id = None
@@ -80,7 +83,16 @@ class ABTerm(App):
         self.sprint_client.cache.reset()
         self.card_client.cache.reset()
         if self.current_sprint_id is not None:
-            self.app.cards_panel.get_cards(self.current_sprint_id)
+            self.cards_panel.get_cards(self.current_sprint_id)
+    
+    def action_open_card_url(self):
+        """
+        Open the selected card in the web browser.
+        """
+        print("enter pressed")
+        if self.current_card_id is not None:
+            url = f"{self.base_url}{self.organisation}/{self.project}/_workitems/edit/{self.current_card_id}/"
+            self.open_url(url)
     
     def action_cmds_cardstate(self):
         """
@@ -95,7 +107,7 @@ class ABTerm(App):
             self.card_client.update_card_state(self.current_card_id, new_state)
             # Refresh the cards panel
             if self.current_sprint_id is not None:
-                self.app.cards_panel.get_cards(self.current_sprint_id)
+                self.cards_panel.get_cards(self.current_sprint_id)
         self.command_state = CommandState.NORMAL
         self.refresh_bindings()
     
@@ -124,7 +136,7 @@ class ABTerm(App):
         self.card_client.update_card_sprint(self.current_card_id, new_sprint.path, self.sprint_client)
         # Refresh the cards panel
         if self.current_sprint_id is not None:
-            self.app.cards_panel.get_cards(self.current_sprint_id)
+            self.cards_panel.get_cards(self.current_sprint_id)
         self.command_state = CommandState.NORMAL
         self.refresh_bindings()
     

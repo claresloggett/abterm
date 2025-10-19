@@ -7,13 +7,10 @@ from azure.devops.connection import Connection
 from msrest.authentication import BasicAuthentication
 from azure.devops.v7_0.work_item_tracking.models import TeamContext
 
-BASE_URL = "https://dev.azure.com/"
-
 class SprintClient:
-    def __init__(self, org, project, team, token):
+    def __init__(self, base_url, org, project, team, token):
         credentials = BasicAuthentication('', token)
-        print(BASE_URL+org)
-        connection = Connection(base_url=BASE_URL+org, creds=credentials)
+        connection = Connection(base_url=base_url+org, creds=credentials)
         self.client = connection.clients.get_work_client()
         self.cache = WorkClientCache(self.client)
         self.team_context = TeamContext(project=project, team=team)
