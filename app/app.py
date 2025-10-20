@@ -107,7 +107,10 @@ class ABTerm(App):
             self.card_client.update_card_state(self.current_card_id, new_state)
             # Refresh the cards panel
             if self.current_sprint_id is not None:
+                # Keep the current cursor position
+                row_index = self.cards_panel.table.cursor_row
                 self.cards_panel.get_cards(self.current_sprint_id)
+                self.cards_panel.table.move_cursor(row=row_index)
         self.command_state = CommandState.NORMAL
         self.refresh_bindings()
     
@@ -136,7 +139,10 @@ class ABTerm(App):
         self.card_client.update_card_sprint(self.current_card_id, new_sprint.path, self.sprint_client)
         # Refresh the cards panel
         if self.current_sprint_id is not None:
+            # Keep the current cursor position, by index, irrespective of card changes
+            row_index = self.cards_panel.table.cursor_row
             self.cards_panel.get_cards(self.current_sprint_id)
+            self.cards_panel.table.move_cursor(row=row_index)
         self.command_state = CommandState.NORMAL
         self.refresh_bindings()
     
