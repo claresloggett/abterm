@@ -28,6 +28,7 @@ class CardsPanel(Widget):
         self.table.add_column("ID", width=5)
         self.table.add_column("Title", width=60)
         self.table.add_column("State", width=15)
+        self.table.add_column("Assigned", width=9)
         self.table.add_column("Feature", width=35)
         self.table.add_column("Epic", width=35)
 
@@ -66,6 +67,15 @@ class CardsPanel(Widget):
             card_id = Text(str(card.id), style=f"on {card_type_colour}")
             card_title = Text(prefix + card.fields['System.Title'], style=text_style)
             card_state = Text(card.fields['System.State'], style=text_style)
+
+            # Extract first name from assigned user
+            if 'System.AssignedTo' in card.fields:
+                display_name = card.fields['System.AssignedTo']['displayName']
+                assigned_name = display_name.split()[0]  # Get first name
+            else:
+                assigned_name = "-"
+
+            card_assigned = Text(assigned_name, style=text_style)
             card_feature = Text(card.fields.get('Parent Feature', {}).get('Title', "unknown"),
                                 style=text_style)
             card_epic = Text(card.fields.get('Parent Epic', {}).get('Title', "unknown"),
@@ -74,11 +84,13 @@ class CardsPanel(Widget):
                 card_id,
                 card_title,
                 card_state,
+                card_assigned,
                 card_feature,
                 card_epic,
                 key=str(card.id)
             )
-    
+
+
     def on_data_table_row_highlighted(self, event):
         """Handle selection of a card from the table."""
         self.app.current_card_id = event.row_key.value
