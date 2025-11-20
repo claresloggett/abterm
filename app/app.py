@@ -56,7 +56,7 @@ class ABTerm(App):
         self.current_sprint_id = None
         self.current_card_id = None
         self.command_state = CommandState.NORMAL
-
+    
     def compose(self) -> ComposeResult:
         yield Vertical(
             Horizontal(
@@ -96,13 +96,16 @@ class ABTerm(App):
     
     def action_cmds_cardstate(self):
         """
-        Change the state of the selected card.
+        Enter command mode to change the state of the selected card.
         """
         if self.current_card_id is not None:
             self.command_state = CommandState.CHANGE_CARDSTATE
         self.refresh_bindings()
 
     def action_card_set_state(self, new_state: str):
+        """
+        Change the state of the selected card to the specified state.
+        """
         if self.current_card_id is not None:
             self.card_client.update_card_state(self.current_card_id, new_state)
             # Refresh the cards panel
@@ -116,7 +119,7 @@ class ABTerm(App):
     
     def action_cmds_move_card(self):
         """
-        Move the selected card to another sprint.
+        Enter command mode to move the selected card to another sprint.
         """
         if self.current_card_id is not None:
             self.command_state = CommandState.MOVE_CARD
@@ -124,7 +127,7 @@ class ABTerm(App):
     
     def action_move_card(self, offset: int):
         """
-        Move the selected card to another sprint.
+        Move the selected card to the specified sprint.
         """
         if self.current_card_id is None:
             return
@@ -162,7 +165,7 @@ class ABTerm(App):
     
     def action_cancel(self):
         """
-        Cancel the current action, returning to normal mode.
+        Cancel the current command state, returning to normal mode.
         """
         self.command_state = CommandState.NORMAL
         self.refresh_bindings()
