@@ -81,6 +81,21 @@ class CardClient:
             cards += batch
         return cards
 
+    def add_initial_sprint(self, card):
+        """Add the initial sprint as a top-level field on the card"""
+        initial_sprint = self.get_card_initial_sprint(card.id)
+        card.fields['Initial Sprint'] = initial_sprint
+        return card
+
+    # This gets the card's initial iteration path from its initial revision
+    # It does not get the full iteration history; if the card was created in 
+    # the backlog and then moved to a sprint, this will not capture that
+    def get_card_initial_sprint(self, card_id):
+        # TODO cache this information and/or replace with better method
+        initial_revision = self.client.get_revisions(card_id, top=1)[0]
+        initial_sprint = initial_revision.fields.get('System.IterationPath', None)
+        return initial_sprint
+
     def get_card_and_parents(self, card):
         """
         Re-get the card.

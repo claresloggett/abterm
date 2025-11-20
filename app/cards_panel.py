@@ -31,6 +31,7 @@ class CardsPanel(Widget):
         self.table.add_column("Assigned", width=9)
         self.table.add_column("Feature", width=35)
         self.table.add_column("Epic", width=35)
+        self.table.add_column("Initial", width=20)
 
     def compose(self) -> ComposeResult:
         yield self.table
@@ -39,6 +40,7 @@ class CardsPanel(Widget):
         """Fetch cards for the given sprint ID."""
         cards = self.card_client.get_sprint_cards(sprint_id, self.sprint_client)
         self.cards = [self.card_client.get_card_and_parents(card) for card in cards]
+        self.cards = [self.card_client.add_initial_sprint(card) for card in self.cards]
         self.update_table()
     
     def card(self, card_id):
@@ -67,6 +69,7 @@ class CardsPanel(Widget):
             card_id = Text(str(card.id), style=f"on {card_type_colour}")
             card_title = Text(prefix + card.fields['System.Title'], style=text_style)
             card_state = Text(card.fields['System.State'], style=text_style)
+            card_initial_sprint = card.fields.get('Initial Sprint', "unknown")
 
             # Extract first name from assigned user
             if 'System.AssignedTo' in card.fields:
@@ -87,6 +90,7 @@ class CardsPanel(Widget):
                 card_assigned,
                 card_feature,
                 card_epic,
+                card_initial_sprint,
                 key=str(card.id)
             )
 
