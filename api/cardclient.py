@@ -83,12 +83,16 @@ class CardClient:
 
     def add_initial_sprint(self, card):
         """Add the initial sprint as a top-level field on the card"""
+        if card.id in self.cache.card_history_cache:
+            initial_sprint = self.cache.card_history_cache[card.id]
+            card.fields['Initial Sprint'] = initial_sprint
+            return card
         initial_sprint = self.get_card_initial_sprint(card.id)
+        self.cache.card_history_cache[card.id] = initial_sprint
         card.fields['Initial Sprint'] = initial_sprint
         return card
 
     def get_card_initial_sprint(self, card_id):
-        # TODO make sure this information is in the cached card; don't decorate with it afterwards
         initial_revision = self.client.get_revisions(card_id, top=1)[0]
         initial_iteration = initial_revision.fields.get('System.IterationPath', None)
         if not initial_iteration:
@@ -98,6 +102,7 @@ class CardClient:
             sprint = initial_iteration.split("\\")[-1]
             return sprint
         # The card was created in the backlog; check updates
+        # If required for performance, we could batch update retrievals
         # System.IterationLevel2 tracks the sprint level
         updates = self.client.get_updates(card_id)
         for update in updates:
@@ -113,12 +118,20 @@ class CardClient:
 
     def get_card_and_parents(self, card):
         """
-        Re-get the card.
+        Make sure we have the card with relations expanded.
         Get all parents of the given card and add them as fields (Parent Feature, Parent Epic, Parent User Story).
         Also add the first parent as a top-level field 'Parent'.
+        Updates the cache with retrieved information, and uses cached information where possible.
         """
         # In case we need to get it again for the relations
         card = self.cache.get_work_item(card.id, expand='relations')
+        if card.id in self.cache.card_parents_cache:
+            # Iterate through cached parents and add them to the card
+            for parent_type, parent_info in self.cache.card_parents_cache[card.id].items():
+                card.fields[parent_type] = parent_info
+            return card
+        # Not cached, so get info
+        self.cache.card_parents_cache[card.id] = {}
         current_parent = card
         direct_parent = True
         while (parent_id :=  current_parent.fields.get('System.Parent')):
@@ -132,9 +145,18 @@ class CardClient:
                 'Id': parent_id,
                 'Title': parent_title
             }
+            # Cache the parent info
+            self.cache.card_parents_cache[card.id][f'Parent {parent_type}'] = {
+                'Id': parent_id,
+                'Title': parent_title
+            }
             if direct_parent:
                 # If this is the first parent, add it as a direct parent
                 card.fields['Parent'] = {
+                    'Id': parent_id,
+                    'Title': parent_title
+                }
+                self.cache.card_parents_cache[card.id]['Parent'] = {
                     'Id': parent_id,
                     'Title': parent_title
                 }
@@ -145,32 +167,43 @@ class CardClient:
 class WorkItemCache:
     def __init__(self, client):
         self.client = client
-        self.cache = {}
+        # The cards_cache caches the results of self.client.get_work_item()
+        self.cards_cache = {}
+        # Since we may have multiple "versions" of a card in the cards_cache (different expand or fields),
+        # we cache our augmented data separately
+        self.card_parents_cache = {}
+        self.card_history_cache = {}
 
     def reset(self):
-        self.cache = {}
+        self.cards_cache = {}
+        self.card_parents_cache = {}
+        self.card_history_cache = {}
 
     def reset_card(self, card_id):
         card_id = str(card_id)
-        if card_id in self.cache:
-            del self.cache[card_id]
+        if card_id in self.cards_cache:
+            del self.cards_cache[card_id]
+        if card_id in self.card_parents_cache:
+            del self.card_parents_cache[card_id]
+        if card_id in self.card_history_cache:
+            del self.card_history_cache[card_id]
 
     def get_work_item(self, card_id, expand=None):
         card_id = str(card_id)
         # The cache is nested and indexed by just card_id, so we can invalidate all versions of a card when needed
-        if card_id not in self.cache:
-            self.cache[card_id] = {}
-            self.cache[card_id][expand] = self.client.get_work_item(card_id, expand=expand)
-        if expand not in self.cache[card_id]:
-            self.cache[card_id][expand] = self.client.get_work_item(card_id, expand=expand)
-        return self.cache[card_id][expand]
+        if card_id not in self.cards_cache:
+            self.cards_cache[card_id] = {}
+            self.cards_cache[card_id][expand] = self.client.get_work_item(card_id, expand=expand)
+        if expand not in self.cards_cache[card_id]:
+            self.cards_cache[card_id][expand] = self.client.get_work_item(card_id, expand=expand)
+        return self.cards_cache[card_id][expand]
 
     # Does not exactly match the API as doesn't require a WorkItemBatchGetRequest
     def get_work_items_batch(self, project, ids, fields=None, expand=None):
-        unknown_ids = [id for id in ids if (id, fields, expand) not in self.cache]
+        unknown_ids = [id for id in ids if (id, fields, expand) not in self.cards_cache]
         if len(unknown_ids)>0:
             request = WorkItemBatchGetRequest(ids=unknown_ids, fields=fields, expand=expand)
             cards = self.client.get_work_items_batch(request, project=project)
             for card in cards:
-                self.cache[(card.id, fields, expand)] = card
-        return [self.cache[(id, fields, expand)] for id in ids]
+                self.cards_cache[(card.id, fields, expand)] = card
+        return [self.cards_cache[(id, fields, expand)] for id in ids]
