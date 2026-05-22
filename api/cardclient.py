@@ -119,6 +119,13 @@ class CardClient:
             return sprint
         # No sprint found
         return ""
+    
+    def get_card_sprints(self, card_id):
+        # In this case, faster to batch-get the whole card history
+        revisions = self.client.get_revisions(card_id)
+        iterations = set([r.fields.get('System.IterationPath', None) for r in revisions])
+        sprints = [itn.split('\\')[-1] for itn in iterations if itn and '\\' in itn]
+        return sorted(sprints)
 
     def get_card_and_parents(self, card):
         """
