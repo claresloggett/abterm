@@ -42,7 +42,7 @@ class ABTerm(App):
         CommandState.MOVE_CARD: ["move_card", "move_card_to_backlog", "cancel", "quit"],
     }
     
-    def __init__(self, base_url, org, project, team, token, **kwargs):
+    def __init__(self, base_url, org, project, team, token, show_card_history=False, **kwargs):
         super().__init__(**kwargs)
         self.title = "Azure Boards Terminal"
         self.base_url = base_url
@@ -52,7 +52,7 @@ class ABTerm(App):
         self.sprint_client = SprintClient(base_url, org, project, team, token)
         self.card_client = CardClient(base_url, org, project, token)
         self.sprints_panel = SprintsPanel(self.sprint_client)
-        self.cards_panel = CardsPanel(self.sprint_client, self.card_client)
+        self.cards_panel = CardsPanel(self.sprint_client, self.card_client, show_card_history)
         self.current_sprint_id = None
         self.current_card_id = None
         self.command_state = CommandState.NORMAL

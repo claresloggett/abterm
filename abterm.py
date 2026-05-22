@@ -1,3 +1,4 @@
+import argparse
 from app import ABTerm
 
 # the config file is currently Python-like; could technically import it instead
@@ -5,6 +6,9 @@ from app import ABTerm
 CONFIG_FILE = "config.txt"
 
 BASE_URL = "https://dev.azure.com"
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--history", action="store_true", help="Retrieve history of each card to find its earliest active iteration. This can significantly increase the number of API calls.")
 
 def read_config():
     expected_keys = ['ORGANISATION', 'PROJECT', 'TEAM', 'TOKEN']
@@ -20,5 +24,7 @@ def read_config():
 
 if __name__ == "__main__":
     config = read_config()
-    app = ABTerm(BASE_URL, config['ORGANISATION'], config['PROJECT'], config['TEAM'], config['TOKEN'])
+    args = parser.parse_args()
+    app = ABTerm(BASE_URL, config['ORGANISATION'], config['PROJECT'], config['TEAM'], 
+                 config['TOKEN'], args.history)
     app.run()
