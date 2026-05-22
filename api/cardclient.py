@@ -26,6 +26,8 @@ class CardClient:
         query = Wiql("SELECT * FROM WorkItems WHERE [System.WorkItemType] = 'Epic'")
         listing = self.client.query_by_wiql(query)
         # TODO should check listing is not over 200 items, and batch
+        if len(listing.work_items) > 200:
+            raise ValueError("Too many epics to fetch in one batch")
         ids = [item.id for item in listing.work_items]
         if len(ids)==0:
             return []
@@ -39,6 +41,8 @@ class CardClient:
         if len(child_ids)==0:
             return []
         # TODO should check listing is not over 200 items, and batch
+        if len(child_ids) > 200:
+            raise ValueError("Too many children to fetch in one batch")
         cards = self.cache.get_work_items_batch(self.project, child_ids, fields=fields)
         return [self.add_state_to_card(card.as_dict()) for card in cards]
 
@@ -205,5 +209,5 @@ class WorkItemCache:
             request = WorkItemBatchGetRequest(ids=unknown_ids, fields=fields, expand=expand)
             cards = self.client.get_work_items_batch(request, project=project)
             for card in cards:
-                self.cards_cache[(card.id, fields, expand)] = card
-        return [self.cards_cache[(id, fields, expand)] for id in ids]
+                self.cards_cache[(str(card.id), fields, expand)] = card
+        return [self.cards_cache[(str(id), fields, expand)] for id in ids]
